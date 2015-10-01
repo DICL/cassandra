@@ -28,6 +28,8 @@ import org.apache.cassandra.config.DatabaseDescriptor;
 
 public class LeaderService
 {
+    public static final LeaderService instance = new LeaderService();
+
     private static final Random random = new Random();
     private static int points = 0;
     private static boolean isLeader;
@@ -35,7 +37,6 @@ public class LeaderService
     private static PriorityQueue<EndpointInfo> leadershipQueue;
     private static ConcurrentHashMap<InetAddress, Integer> leadershipMap;
     private static ConcurrentHashMap<InetAddress, LoadState> loadStateMap;
-    // public static final LeaderService instance = new LeaderService();
 
 
     private static class LoadState
@@ -95,6 +96,10 @@ public class LeaderService
         leadershipQueue = new PriorityQueue<>();
         leadershipMap = new ConcurrentHashMap<>();
         loadStateMap = new ConcurrentHashMap<>();
+        InetAddress address = DatabaseDescriptor.getSeeds().iterator().next();
+        leadershipQueue.add(new EndpointInfo(address, 0));
+        leadershipMap.put(address, 0);
+        setLeaderAddress(address);
     }
 
     /* Removes the address from the list when endpoint went DOWN */
@@ -111,18 +116,11 @@ public class LeaderService
      *  setting it's leadership points to 0 */
     public static void setNextLeader()
     {
-        try
-        {
-            Thread.sleep(60*1000);
-        } catch (InterruptedException e)
-        {
-            Thread.currentThread().interrupt();
-        }
-
-        EndpointInfo newLeader = leadershipQueue.poll();
+        leadershipQueue.poll(); // Deleting leader from queue
+        EndpointInfo newLeader = leadershipQueue.poll(); // Getting info about next leader
         newLeader.points = 0;
         leadershipMap.replace(newLeader.address, newLeader.points);
-        leadershipQueue.add(newLeader);
+        leadershipQueue.add(newLeader); // Putting it back with 0 points
         setLeaderAddress(newLeader.address);
     }
 
@@ -177,5 +175,4 @@ public class LeaderService
         else
             loadStateMap.put(address, state);
     }
-
 }

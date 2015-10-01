@@ -198,12 +198,12 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
                     gossipLeadershipPoints();
 
                     /* Gossip to leader node the system load status of the node, if leader exists */
-                    if (!LeaderService.isLeader())
+                    if (!LeaderService.instance.isLeader())
                     {
-                        if (LeaderService.hasLeader())
+                        if (LeaderService.instance.hasLeader())
                             gossipLoadToLeader();
                         else
-                            LeaderService.setNextLeader();
+                            LeaderService.instance.setNextLeader();
                     }
 
                     doStatusCheck();
@@ -991,7 +991,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             subscriber.onDead(addr, localState);
         if (logger.isTraceEnabled())
             logger.trace("Notified {}", subscribers);
-        LeaderService.removeFromLeaderList(addr);
+        LeaderService.instance.removeFromLeaderList(addr);
     }
 
     /**
@@ -1312,7 +1312,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     {
         for (InetAddress to: liveEndpoints)
         {
-            GossipLeaderInfo leaderInfoMessage = new GossipLeaderInfo(LeaderService.getPoints(), LeaderService.getLeaderAddress());
+            GossipLeaderInfo leaderInfoMessage = new GossipLeaderInfo(LeaderService.instance.getPoints(), LeaderService.getLeaderAddress());
             MessageOut<GossipLeaderInfo> message = new MessageOut<GossipLeaderInfo>(MessagingService.Verb.GOSSIP_LEADER_INFO,
                                                                                    leaderInfoMessage,
                                                                                    GossipLeaderInfo.serializer);
@@ -1325,7 +1325,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
      */
     private void gossipLoadToLeader() throws SigarException
     {
-        InetAddress to = LeaderService.getLeaderAddress();
+        InetAddress to = LeaderService.instance.getLeaderAddress();
         GossipLoadInfo loadInfoMessage = new GossipLoadInfo(SystemLoadInfoService.getCPUUtilization(),
                                                             SystemLoadInfoService.getMemoryUtilization(),
                                                             SystemLoadInfoService.getDiskUtilization());

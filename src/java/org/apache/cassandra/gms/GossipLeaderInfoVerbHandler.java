@@ -45,6 +45,6 @@ public class GossipLeaderInfoVerbHandler implements IVerbHandler<GossipLeaderInf
         if (logger.isTraceEnabled())
             logger.trace("Gossip leader info is : {}", leadershipPoints);
 
-        LeaderService.putToLeaderList(message.from, leadershipPoints);
+        LeaderService.instance.putToLeaderList(message.from, leadershipPoints);
     }
 }

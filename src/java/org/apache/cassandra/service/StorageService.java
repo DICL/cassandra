@@ -125,6 +125,7 @@ import org.apache.cassandra.gms.GossipDigestAck2VerbHandler;
 import org.apache.cassandra.gms.GossipDigestAckVerbHandler;
 import org.apache.cassandra.gms.GossipDigestSynVerbHandler;
 import org.apache.cassandra.gms.GossipLeaderInfoVerbHandler;
+import org.apache.cassandra.gms.GossipLoadInfoVerbHandler;
 import org.apache.cassandra.gms.GossipShutdownVerbHandler;
 import org.apache.cassandra.gms.Gossiper;
 import org.apache.cassandra.gms.IEndpointStateChangeSubscriber;
@@ -333,6 +334,7 @@ public class StorageService extends NotificationBroadcasterSupport implements IE
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.GOSSIP_DIGEST_ACK, new GossipDigestAckVerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.GOSSIP_DIGEST_ACK2, new GossipDigestAck2VerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.GOSSIP_LEADER_INFO, new GossipLeaderInfoVerbHandler());
+        MessagingService.instance().registerVerbHandlers(MessagingService.Verb.GOSSIP_LOAD_INFO, new GossipLoadInfoVerbHandler());
 
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.DEFINITIONS_UPDATE, new DefinitionsUpdateVerbHandler());
         MessagingService.instance().registerVerbHandlers(MessagingService.Verb.SCHEMA_CHECK, new SchemaCheckVerbHandler());

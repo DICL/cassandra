@@ -34,7 +34,7 @@ public class GossipLoadInfoVerbHandler implements IVerbHandler<GossipLoadInfo>
             logger.error("Gossip to false leader from {} to {} ", from, DatabaseDescriptor.getListenAddress());
         else
         {
-            LeaderService.refreshEndpointLoadState(from, gLoadInfo.cpu, gLoadInfo.memory, gLoadInfo.disk);
+            LeaderService.instance.refreshEndpointLoadState(from, gLoadInfo.cpu, gLoadInfo.memory, gLoadInfo.disk);
         }
 
     }

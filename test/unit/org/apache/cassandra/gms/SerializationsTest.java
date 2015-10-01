@@ -18,13 +18,6 @@
  */
 package org.apache.cassandra.gms;
 
-import org.apache.cassandra.AbstractSerializationsTester;
-import org.apache.cassandra.dht.Token;
-import org.apache.cassandra.io.util.DataOutputStreamPlus;
-import org.apache.cassandra.service.StorageService;
-import org.apache.cassandra.utils.FBUtilities;
-import org.junit.Test;
-
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -33,6 +26,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.junit.Test;
+
+import org.apache.cassandra.AbstractSerializationsTester;
+import org.apache.cassandra.dht.Token;
+import org.apache.cassandra.io.util.DataOutputStreamPlus;
+import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.utils.FBUtilities;
 
 public class SerializationsTest extends AbstractSerializationsTester
 {

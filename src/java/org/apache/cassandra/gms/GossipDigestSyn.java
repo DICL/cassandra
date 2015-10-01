@@ -89,8 +89,7 @@ class GossipDigestSynSerializer implements IVersionedSerializer<GossipDigestSyn>
     public GossipDigestSyn deserialize(DataInput in, int version) throws IOException
     {
         String clusterId = in.readUTF();
-        String partioner = null;
-        partioner = in.readUTF();
+        String partioner = in.readUTF();
         List<GossipDigest> gDigests = GossipDigestSerializationHelper.deserialize(in, version);
         return new GossipDigestSyn(clusterId, partioner, gDigests);
     }

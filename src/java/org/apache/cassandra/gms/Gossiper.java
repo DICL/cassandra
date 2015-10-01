@@ -20,19 +20,32 @@ package org.apache.cassandra.gms;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.*;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.Uninterruptibles;
-
-import org.apache.cassandra.utils.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,9 +59,13 @@ import org.apache.cassandra.net.IAsyncCallback;
 import org.apache.cassandra.net.MessageIn;
 import org.apache.cassandra.net.MessageOut;
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.service.LeaderService;
 import org.apache.cassandra.service.StorageService;
+import org.apache.cassandra.service.SystemLoadInfoService;
 import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.JVMStabilityInspector;
+import org.apache.cassandra.utils.Pair;
+import org.hyperic.sigar.SigarException;
 
 /**
  * This module is responsible for Gossiping information for the local endpoint. This abstraction
@@ -176,6 +193,18 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
                        See CASSANDRA-150 for more exposition. */
                     if (!gossipedToSeed || liveEndpoints.size() < seeds.size())
                         maybeGossipToSeed(message);
+
+                    /* Gossip to every live node it's leadership points status */
+                    gossipLeadershipPoints();
+
+                    /* Gossip to leader node the system load status of the node, if leader exists */
+                    if (!LeaderService.isLeader())
+                    {
+                        if (LeaderService.hasLeader())
+                            gossipLoadToLeader();
+                        else
+                            LeaderService.setNextLeader();
+                    }
 
                     doStatusCheck();
                 }
@@ -962,6 +991,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
             subscriber.onDead(addr, localState);
         if (logger.isTraceEnabled())
             logger.trace("Notified {}", subscribers);
+        LeaderService.removeFromLeaderList(addr);
     }
 
     /**
@@ -1272,6 +1302,39 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
                                                               Gossiper.intervalInMillis,
                                                               TimeUnit.MILLISECONDS);
     }
+
+
+    /**
+     *  All nodes gossip their randomly genereted leadership points. Node with lowest
+     *  leadership points become leader and gets gossips about the load state of other nodes.
+     */
+    private void gossipLeadershipPoints()
+    {
+        for (InetAddress to: liveEndpoints)
+        {
+            GossipLeaderInfo leaderInfoMessage = new GossipLeaderInfo(LeaderService.getPoints(), LeaderService.getLeaderAddress());
+            MessageOut<GossipLeaderInfo> message = new MessageOut<GossipLeaderInfo>(MessagingService.Verb.GOSSIP_LEADER_INFO,
+                                                                                   leaderInfoMessage,
+                                                                                   GossipLeaderInfo.serializer);
+            MessagingService.instance().sendOneWay(message, to);
+        }
+    }
+
+    /**
+     *  Send gossip to leader the system load information
+     */
+    private void gossipLoadToLeader() throws SigarException
+    {
+        InetAddress to = LeaderService.getLeaderAddress();
+        GossipLoadInfo loadInfoMessage = new GossipLoadInfo(SystemLoadInfoService.getCPUUtilization(),
+                                                            SystemLoadInfoService.getMemoryUtilization(),
+                                                            SystemLoadInfoService.getDiskUtilization());
+        MessageOut<GossipLoadInfo> message = new MessageOut<GossipLoadInfo>(MessagingService.Verb.GOSSIP_LOAD_INFO,
+                                                                            loadInfoMessage,
+                                                                            GossipLoadInfo.serializer);
+        MessagingService.instance().sendOneWay(message, to);
+    }
+
 
     /**
      *  Do a single 'shadow' round of gossip, where we do not modify any state

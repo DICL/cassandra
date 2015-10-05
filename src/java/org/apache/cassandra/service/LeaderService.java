@@ -18,25 +18,36 @@
 
 package org.apache.cassandra.service;
 
+import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.util.Comparator;
 import java.util.PriorityQueue;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.management.MBeanServer;
+import javax.management.ObjectName;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.config.DatabaseDescriptor;
 
-public class LeaderService
+public class LeaderService implements LeaderServiceMBean
 {
     public static final LeaderService instance = new LeaderService();
 
-    private static final Random random = new Random();
-    private static int points = 0;
-    private static boolean isLeader;
-    private static InetAddress leaderAddress;
-    private static PriorityQueue<EndpointInfo> leadershipQueue;
-    private static ConcurrentHashMap<InetAddress, Integer> leadershipMap;
-    private static ConcurrentHashMap<InetAddress, LoadState> loadStateMap;
+    public static final String MBEAN_NAME = "org.apache.casssandra.service:type=Leader";
+
+    private static final Logger logger = LoggerFactory.getLogger(LeaderService.class);
+
+    private final Random random = new Random();
+    private int points = random.nextInt() % Integer.MAX_VALUE + 1;
+    private boolean isLeader;
+    private InetAddress leaderAddress;
+    private PriorityQueue<EndpointInfo> leadershipQueue = new PriorityQueue<>();
+    private ConcurrentHashMap<InetAddress, Integer> leadershipMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<InetAddress, LoadState> loadStateMap = new ConcurrentHashMap<>();
 
 
     private static class LoadState
@@ -45,7 +56,7 @@ public class LeaderService
         private int memory;
         private int disk;
 
-        public LoadState(int cpu, int memory, int disk)
+        private LoadState(int cpu, int memory, int disk)
         {
             this.cpu = cpu;
             this.disk = disk;
@@ -58,7 +69,7 @@ public class LeaderService
         private InetAddress address;
         private int points;
 
-        public EndpointInfo(InetAddress address, int points)
+        private EndpointInfo(InetAddress address, int points)
         {
             this.address = address;
             this.points = points;
@@ -88,14 +99,18 @@ public class LeaderService
         }
     }
 
-    public LeaderService()
+    private LeaderService()
     {
-        points = random.nextInt() % Integer.MAX_VALUE + 1;
-        isLeader = false;
-        leaderAddress = DatabaseDescriptor.getListenAddress();
-        leadershipQueue = new PriorityQueue<>();
-        leadershipMap = new ConcurrentHashMap<>();
-        loadStateMap = new ConcurrentHashMap<>();
+        try
+        {
+            MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+            mbs.registerMBean(this, new ObjectName(MBEAN_NAME));
+        }
+        catch (Exception e)
+        {
+            throw new RuntimeException(e);
+        }
+
         InetAddress address = DatabaseDescriptor.getSeeds().iterator().next();
         leadershipQueue.add(new EndpointInfo(address, 0));
         leadershipMap.put(address, 0);
@@ -103,7 +118,7 @@ public class LeaderService
     }
 
     /* Removes the address from the list when endpoint went DOWN */
-    public static void removeFromLeaderList(InetAddress address)
+    public void removeFromLeaderList(InetAddress address)
     {
         leadershipQueue.remove(new EndpointInfo(address, leadershipMap.get(address)));
         leadershipMap.remove(address);
@@ -114,7 +129,7 @@ public class LeaderService
     /*
      *  Insures that no newly added nodes will have equal or less points than current leader,
      *  setting it's leadership points to 0 */
-    public static void setNextLeader()
+    public void setNextLeader()
     {
         leadershipQueue.poll(); // Deleting leader from queue
         EndpointInfo newLeader = leadershipQueue.poll(); // Getting info about next leader
@@ -124,7 +139,7 @@ public class LeaderService
         setLeaderAddress(newLeader.address);
     }
 
-    public static void putToLeaderList(InetAddress address, int points)
+    public void putToLeaderList(InetAddress address, int points)
     {
         if (leadershipMap.containsKey(address)) return;
         leadershipMap.put(address, points);
@@ -132,42 +147,42 @@ public class LeaderService
     }
 
 
-    public static int getPoints()
+    public int getPoints()
     {
         return points;
     }
 
     /* Makes this node a leader */
-    public static void setLeadership()
+    public void setLeadership()
     {
         isLeader = true;
         points = 0;
     }
 
     /* Assigns an address as an leader-address to send it system load information */
-    public static void setLeaderAddress(InetAddress address)
+    public void setLeaderAddress(InetAddress address)
     {
         leaderAddress = address;
         if (leaderAddress == DatabaseDescriptor.getListenAddress())
             setLeadership();
     }
 
-    public static InetAddress getLeaderAddress()
+    public InetAddress getLeaderAddress()
     {
         return leaderAddress;
     }
 
-    public static boolean isLeader()
+    public boolean isLeader()
     {
         return isLeader;
     }
 
-    public static boolean hasLeader()
+    public boolean hasLeader()
     {
         return isLeader ? true : (leaderAddress != DatabaseDescriptor.getListenAddress() ? true : false);
     }
 
-    public static void refreshEndpointLoadState(InetAddress address, int cpu, int memory, int disk)
+    public void refreshEndpointLoadState(InetAddress address, int cpu, int memory, int disk)
     {
         LoadState state = new LoadState(cpu, memory, disk);
         if (loadStateMap.containsKey(address))

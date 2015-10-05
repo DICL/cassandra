@@ -143,6 +143,8 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
 
     private volatile long lastProcessedMessageAt = System.currentTimeMillis();
 
+    private static SystemLoadInfoService sysLoadInfo = new SystemLoadInfoService();
+
     private class GossipTask implements Runnable
     {
         public void run()
@@ -1312,7 +1314,7 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     {
         for (InetAddress to: liveEndpoints)
         {
-            GossipLeaderInfo leaderInfoMessage = new GossipLeaderInfo(LeaderService.instance.getPoints(), LeaderService.getLeaderAddress());
+            GossipLeaderInfo leaderInfoMessage = new GossipLeaderInfo(LeaderService.instance.getPoints(), LeaderService.instance.getLeaderAddress());
             MessageOut<GossipLeaderInfo> message = new MessageOut<GossipLeaderInfo>(MessagingService.Verb.GOSSIP_LEADER_INFO,
                                                                                    leaderInfoMessage,
                                                                                    GossipLeaderInfo.serializer);
@@ -1326,9 +1328,9 @@ public class Gossiper implements IFailureDetectionEventListener, GossiperMBean
     private void gossipLoadToLeader() throws SigarException
     {
         InetAddress to = LeaderService.instance.getLeaderAddress();
-        GossipLoadInfo loadInfoMessage = new GossipLoadInfo(SystemLoadInfoService.getCPUUtilization(),
-                                                            SystemLoadInfoService.getMemoryUtilization(),
-                                                            SystemLoadInfoService.getDiskUtilization());
+        GossipLoadInfo loadInfoMessage = new GossipLoadInfo(sysLoadInfo.getCPUUtilization(),
+                                                            sysLoadInfo.getMemoryUtilization(),
+                                                            sysLoadInfo.getDiskUtilization());
         MessageOut<GossipLoadInfo> message = new MessageOut<GossipLoadInfo>(MessagingService.Verb.GOSSIP_LOAD_INFO,
                                                                             loadInfoMessage,
                                                                             GossipLoadInfo.serializer);

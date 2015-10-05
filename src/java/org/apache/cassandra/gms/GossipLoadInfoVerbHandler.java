@@ -30,7 +30,7 @@ public class GossipLoadInfoVerbHandler implements IVerbHandler<GossipLoadInfo>
                          gLoadInfo.disk);
 
         /* Something went wrong */
-        if (!LeaderService.isLeader())
+        if (!LeaderService.instance.isLeader())
             logger.error("Gossip to false leader from {} to {} ", from, DatabaseDescriptor.getListenAddress());
         else
         {

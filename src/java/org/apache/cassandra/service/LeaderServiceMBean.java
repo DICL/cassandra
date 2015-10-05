@@ -18,23 +18,28 @@
 
 package org.apache.cassandra.service;
 
-import javax.management.InstanceNotFoundException;
-import javax.management.MalformedObjectNameException;
-import javax.management.ReflectionException;
+import java.net.InetAddress;
 
-import org.junit.Test;
-
-import org.hyperic.sigar.SigarException;
-
-public class LoadInfoTest
+public interface LeaderServiceMBean
 {
-    @Test
-    public void testLoadInfo() throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException, SigarException
-    {
-        SystemLoadInfoService loadInfoService = new SystemLoadInfoService();
-        int cpuLoad = loadInfoService.getCPUUtilization();
-        int memLoad = loadInfoService.getMemoryUtilization();
-        int diskLoad = loadInfoService.getDiskUtilization();
-        System.out.printf("CPU load: %d; Memory load: %d; Disk space %d;", cpuLoad, memLoad, diskLoad);
-    }
+    public void removeFromLeaderList(InetAddress address);
+
+    public void setNextLeader();
+
+    public void putToLeaderList(InetAddress address, int points);
+
+    public int getPoints();
+
+    public void setLeadership();
+
+    public void setLeaderAddress(InetAddress address);
+
+    public InetAddress getLeaderAddress();
+
+    public boolean isLeader();
+
+    public boolean hasLeader();
+
+    public void refreshEndpointLoadState(InetAddress address, int cpu, int memory, int disk);
+
 }

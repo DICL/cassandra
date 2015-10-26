@@ -27,7 +27,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.server.RMIClientSocketFactory;
 import java.rmi.server.RMISocketFactory;
-import java.text.SimpleDateFormat;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,7 +40,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
 import javax.management.MalformedObjectNameException;
@@ -53,6 +51,12 @@ import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import javax.rmi.ssl.SslRMIClientSocketFactory;
+
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import org.apache.cassandra.concurrent.Stage;
 import org.apache.cassandra.db.BatchlogManager;
@@ -77,18 +81,14 @@ import org.apache.cassandra.service.CacheService;
 import org.apache.cassandra.service.CacheServiceMBean;
 import org.apache.cassandra.service.GCInspector;
 import org.apache.cassandra.service.GCInspectorMXBean;
+import org.apache.cassandra.service.LeaderService;
+import org.apache.cassandra.service.LeaderServiceMBean;
 import org.apache.cassandra.service.StorageProxy;
 import org.apache.cassandra.service.StorageProxyMBean;
 import org.apache.cassandra.service.StorageServiceMBean;
 import org.apache.cassandra.streaming.StreamManagerMBean;
 import org.apache.cassandra.streaming.StreamState;
 import org.apache.cassandra.streaming.management.StreamStateCompositeData;
-
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.Uninterruptibles;
 
 /**
  * JMX client operations for Cassandra.
@@ -118,6 +118,7 @@ public class NodeProbe implements AutoCloseable
     private StorageProxyMBean spProxy;
     private HintedHandOffManagerMBean hhProxy;
     private BatchlogManagerMBean bmProxy;
+    private LeaderServiceMBean leaderService;
     private boolean failed;
 
     /**
@@ -210,6 +211,8 @@ public class NodeProbe implements AutoCloseable
             gossProxy = JMX.newMBeanProxy(mbeanServerConn, name, GossiperMBean.class);
             name = new ObjectName(BatchlogManager.MBEAN_NAME);
             bmProxy = JMX.newMBeanProxy(mbeanServerConn, name, BatchlogManagerMBean.class);
+            name = new ObjectName(LeaderService.MBEAN_NAME);
+            leaderService = JMX.newMBeanProxy(mbeanServerConn, name, LeaderServiceMBean.class);
         }
         catch (MalformedObjectNameException e)
         {

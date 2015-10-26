@@ -263,7 +263,7 @@ JVM_OPTS="$JVM_OPTS -Djava.net.preferIPv4Stack=true"
 # jmx: metrics and administration interface
 #
 # add this if you're having trouble connecting:
-# JVM_OPTS="$JVM_OPTS -Djava.rmi.server.hostname=<public name>"
+JVM_OPTS="$JVM_OPTS -Djava.rmi.server.hostname=gamakmaster"
 #
 # see
 # https://blogs.oracle.com/jmxetc/entry/troubleshooting_connection_problems_in_jconsole
@@ -274,7 +274,7 @@ JVM_OPTS="$JVM_OPTS -Djava.net.preferIPv4Stack=true"
 # To enable remote JMX connections, uncomment lines below
 # with authentication and/or ssl enabled. See https://wiki.apache.org/cassandra/JmxSecurity 
 #
-LOCAL_JMX=yes
+#LOCAL_JMX=yes
 
 # Specifies the default port over which Cassandra will be available for
 # JMX connections.
@@ -287,8 +287,8 @@ else
   JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.port=$JMX_PORT"
   JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.rmi.port=$JMX_PORT"
   JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.ssl=false"
-  JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=true"
-  JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.password.file=/etc/cassandra/jmxremote.password"
+#  JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.authenticate=true"
+  JVM_OPTS="$JVM_OPTS -Dcom.sun.management.jmxremote.password.file=/opt/cassandra/conf/jmxremote.password"
 #  JVM_OPTS="$JVM_OPTS -Djavax.net.ssl.keyStore=/path/to/keystore"
 #  JVM_OPTS="$JVM_OPTS -Djavax.net.ssl.keyStorePassword=<keystore-password>"
 #  JVM_OPTS="$JVM_OPTS -Djavax.net.ssl.trustStore=/path/to/truststore"
@@ -304,8 +304,8 @@ fi
 # See http://wiki.apache.org/cassandra/Operations#Monitoring_with_MX4J
 # By default mx4j listens on 0.0.0.0:8081. Uncomment the following lines
 # to control its listen address and port.
-#MX4J_ADDRESS="-Dmx4jaddress=127.0.0.1"
-#MX4J_PORT="-Dmx4jport=8081"
+MX4J_ADDRESS="-Dmx4jaddress=gamakmaster"
+MX4J_PORT="-Dmx4jport=8081"
 
 # Cassandra uses SIGAR to capture OS metrics CASSANDRA-7838
 # for SIGAR we have to set the java.library.path

@@ -56,6 +56,8 @@ import org.apache.cassandra.gms.EchoMessage;
 import org.apache.cassandra.gms.GossipDigestAck;
 import org.apache.cassandra.gms.GossipDigestAck2;
 import org.apache.cassandra.gms.GossipDigestSyn;
+import org.apache.cassandra.gms.GossipLeaderInfo;
+import org.apache.cassandra.gms.GossipLoadInfo;
 import org.apache.cassandra.io.IVersionedSerializer;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.FileUtils;
@@ -110,6 +112,8 @@ public final class MessagingService implements MessagingServiceMBean
         @Deprecated TREE_REQUEST,
         @Deprecated TREE_RESPONSE,
         @Deprecated JOIN,
+        GOSSIP_LEADER_INFO,
+        GOSSIP_LOAD_INFO,
         GOSSIP_DIGEST_SYN,
         GOSSIP_DIGEST_ACK,
         GOSSIP_DIGEST_ACK2,
@@ -137,55 +141,57 @@ public final class MessagingService implements MessagingServiceMBean
         // remember to add new verbs at the end, since we serialize by ordinal
         UNUSED_1,
         UNUSED_2,
-        UNUSED_3,
-        ;
+        UNUSED_3;
     }
 
     public static final EnumMap<MessagingService.Verb, Stage> verbStages = new EnumMap<MessagingService.Verb, Stage>(MessagingService.Verb.class)
     {{
-        put(Verb.MUTATION, Stage.MUTATION);
-        put(Verb.COUNTER_MUTATION, Stage.COUNTER_MUTATION);
-        put(Verb.READ_REPAIR, Stage.MUTATION);
-        put(Verb.TRUNCATE, Stage.MUTATION);
-        put(Verb.PAXOS_PREPARE, Stage.MUTATION);
-        put(Verb.PAXOS_PROPOSE, Stage.MUTATION);
-        put(Verb.PAXOS_COMMIT, Stage.MUTATION);
 
-        put(Verb.READ, Stage.READ);
-        put(Verb.RANGE_SLICE, Stage.READ);
-        put(Verb.INDEX_SCAN, Stage.READ);
-        put(Verb.PAGED_RANGE, Stage.READ);
+            put(Verb.MUTATION, Stage.MUTATION);
+            put(Verb.COUNTER_MUTATION, Stage.COUNTER_MUTATION);
+            put(Verb.READ_REPAIR, Stage.MUTATION);
+            put(Verb.TRUNCATE, Stage.MUTATION);
+            put(Verb.PAXOS_PREPARE, Stage.MUTATION);
+            put(Verb.PAXOS_PROPOSE, Stage.MUTATION);
+            put(Verb.PAXOS_COMMIT, Stage.MUTATION);
 
-        put(Verb.REQUEST_RESPONSE, Stage.REQUEST_RESPONSE);
-        put(Verb.INTERNAL_RESPONSE, Stage.INTERNAL_RESPONSE);
+            put(Verb.READ, Stage.READ);
+            put(Verb.RANGE_SLICE, Stage.READ);
+            put(Verb.INDEX_SCAN, Stage.READ);
+            put(Verb.PAGED_RANGE, Stage.READ);
 
-        put(Verb.STREAM_REPLY, Stage.MISC); // actually handled by FileStreamTask and streamExecutors
-        put(Verb.STREAM_REQUEST, Stage.MISC);
-        put(Verb.REPLICATION_FINISHED, Stage.MISC);
-        put(Verb.SNAPSHOT, Stage.MISC);
+            put(Verb.REQUEST_RESPONSE, Stage.REQUEST_RESPONSE);
+            put(Verb.INTERNAL_RESPONSE, Stage.INTERNAL_RESPONSE);
 
-        put(Verb.TREE_REQUEST, Stage.ANTI_ENTROPY);
-        put(Verb.TREE_RESPONSE, Stage.ANTI_ENTROPY);
-        put(Verb.STREAMING_REPAIR_REQUEST, Stage.ANTI_ENTROPY);
-        put(Verb.STREAMING_REPAIR_RESPONSE, Stage.ANTI_ENTROPY);
-        put(Verb.REPAIR_MESSAGE, Stage.ANTI_ENTROPY);
-        put(Verb.GOSSIP_DIGEST_ACK, Stage.GOSSIP);
-        put(Verb.GOSSIP_DIGEST_ACK2, Stage.GOSSIP);
-        put(Verb.GOSSIP_DIGEST_SYN, Stage.GOSSIP);
-        put(Verb.GOSSIP_SHUTDOWN, Stage.GOSSIP);
+            put(Verb.STREAM_REPLY, Stage.MISC); // actually handled by FileStreamTask and streamExecutors
+            put(Verb.STREAM_REQUEST, Stage.MISC);
+            put(Verb.REPLICATION_FINISHED, Stage.MISC);
+            put(Verb.SNAPSHOT, Stage.MISC);
 
-        put(Verb.DEFINITIONS_UPDATE, Stage.MIGRATION);
-        put(Verb.SCHEMA_CHECK, Stage.MIGRATION);
-        put(Verb.MIGRATION_REQUEST, Stage.MIGRATION);
-        put(Verb.INDEX_SCAN, Stage.READ);
-        put(Verb.REPLICATION_FINISHED, Stage.MISC);
-        put(Verb.COUNTER_MUTATION, Stage.MUTATION);
-        put(Verb.SNAPSHOT, Stage.MISC);
-        put(Verb.ECHO, Stage.GOSSIP);
+            put(Verb.TREE_REQUEST, Stage.ANTI_ENTROPY);
+            put(Verb.TREE_RESPONSE, Stage.ANTI_ENTROPY);
+            put(Verb.STREAMING_REPAIR_REQUEST, Stage.ANTI_ENTROPY);
+            put(Verb.STREAMING_REPAIR_RESPONSE, Stage.ANTI_ENTROPY);
+            put(Verb.REPAIR_MESSAGE, Stage.ANTI_ENTROPY);
+            put(Verb.GOSSIP_DIGEST_ACK, Stage.GOSSIP);
+            put(Verb.GOSSIP_DIGEST_ACK2, Stage.GOSSIP);
+            put(Verb.GOSSIP_DIGEST_SYN, Stage.GOSSIP);
+            put(Verb.GOSSIP_LEADER_INFO, Stage.GOSSIP);
+            put(Verb.GOSSIP_LOAD_INFO, Stage.GOSSIP);
+            put(Verb.GOSSIP_SHUTDOWN, Stage.GOSSIP);
 
-        put(Verb.UNUSED_1, Stage.INTERNAL_RESPONSE);
-        put(Verb.UNUSED_2, Stage.INTERNAL_RESPONSE);
-        put(Verb.UNUSED_3, Stage.INTERNAL_RESPONSE);
+            put(Verb.DEFINITIONS_UPDATE, Stage.MIGRATION);
+            put(Verb.SCHEMA_CHECK, Stage.MIGRATION);
+            put(Verb.MIGRATION_REQUEST, Stage.MIGRATION);
+            put(Verb.INDEX_SCAN, Stage.READ);
+            put(Verb.REPLICATION_FINISHED, Stage.MISC);
+            put(Verb.COUNTER_MUTATION, Stage.MUTATION);
+            put(Verb.SNAPSHOT, Stage.MISC);
+            put(Verb.ECHO, Stage.GOSSIP);
+
+            put(Verb.UNUSED_1, Stage.INTERNAL_RESPONSE);
+            put(Verb.UNUSED_2, Stage.INTERNAL_RESPONSE);
+            put(Verb.UNUSED_3, Stage.INTERNAL_RESPONSE);
     }};
 
     /**
@@ -199,28 +205,30 @@ public final class MessagingService implements MessagingServiceMBean
      */
     public static final EnumMap<Verb, IVersionedSerializer<?>> verbSerializers = new EnumMap<Verb, IVersionedSerializer<?>>(Verb.class)
     {{
-        put(Verb.REQUEST_RESPONSE, CallbackDeterminedSerializer.instance);
-        put(Verb.INTERNAL_RESPONSE, CallbackDeterminedSerializer.instance);
+            put(Verb.REQUEST_RESPONSE, CallbackDeterminedSerializer.instance);
+            put(Verb.INTERNAL_RESPONSE, CallbackDeterminedSerializer.instance);
 
-        put(Verb.MUTATION, Mutation.serializer);
-        put(Verb.READ_REPAIR, Mutation.serializer);
-        put(Verb.READ, ReadCommand.serializer);
-        //put(Verb.RANGE_SLICE, ReadCommand.legacyRangeSliceCommandSerializer);
-        //put(Verb.PAGED_RANGE, ReadCommand.legacyPagedRangeCommandSerializer);
-        put(Verb.BOOTSTRAP_TOKEN, BootStrapper.StringSerializer.instance);
-        put(Verb.REPAIR_MESSAGE, RepairMessage.serializer);
-        put(Verb.GOSSIP_DIGEST_ACK, GossipDigestAck.serializer);
-        put(Verb.GOSSIP_DIGEST_ACK2, GossipDigestAck2.serializer);
-        put(Verb.GOSSIP_DIGEST_SYN, GossipDigestSyn.serializer);
-        put(Verb.DEFINITIONS_UPDATE, MigrationManager.MigrationsSerializer.instance);
-        put(Verb.TRUNCATE, Truncation.serializer);
-        put(Verb.REPLICATION_FINISHED, null);
-        put(Verb.COUNTER_MUTATION, CounterMutation.serializer);
-        put(Verb.SNAPSHOT, SnapshotCommand.serializer);
-        put(Verb.ECHO, EchoMessage.serializer);
-        put(Verb.PAXOS_PREPARE, Commit.serializer);
-        put(Verb.PAXOS_PROPOSE, Commit.serializer);
-        put(Verb.PAXOS_COMMIT, Commit.serializer);
+            put(Verb.MUTATION, Mutation.serializer);
+            put(Verb.READ_REPAIR, Mutation.serializer);
+            put(Verb.READ, ReadCommand.serializer);
+            //put(Verb.RANGE_SLICE, ReadCommand.legacyRangeSliceCommandSerializer);
+            //put(Verb.PAGED_RANGE, ReadCommand.legacyPagedRangeCommandSerializer);
+            put(Verb.BOOTSTRAP_TOKEN, BootStrapper.StringSerializer.instance);
+            put(Verb.REPAIR_MESSAGE, RepairMessage.serializer);
+            put(Verb.GOSSIP_DIGEST_ACK, GossipDigestAck.serializer);
+            put(Verb.GOSSIP_DIGEST_ACK2, GossipDigestAck2.serializer);
+            put(Verb.GOSSIP_DIGEST_SYN, GossipDigestSyn.serializer);
+            put(Verb.GOSSIP_LEADER_INFO, GossipLeaderInfo.serializer);
+            put(Verb.GOSSIP_LOAD_INFO, GossipLoadInfo.serializer);
+            put(Verb.DEFINITIONS_UPDATE, MigrationManager.MigrationsSerializer.instance);
+            put(Verb.TRUNCATE, Truncation.serializer);
+            put(Verb.REPLICATION_FINISHED, null);
+            put(Verb.COUNTER_MUTATION, CounterMutation.serializer);
+            put(Verb.SNAPSHOT, SnapshotCommand.serializer);
+            put(Verb.ECHO, EchoMessage.serializer);
+            put(Verb.PAXOS_PREPARE, Commit.serializer);
+            put(Verb.PAXOS_PROPOSE, Commit.serializer);
+            put(Verb.PAXOS_COMMIT, Commit.serializer);
     }};
 
     /**

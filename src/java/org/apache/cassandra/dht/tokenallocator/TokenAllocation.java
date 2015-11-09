@@ -38,6 +38,7 @@ import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.locator.AbstractReplicationStrategy;
 import org.apache.cassandra.locator.IEndpointSnitch;
+import org.apache.cassandra.locator.NeighborStrategy;
 import org.apache.cassandra.locator.NetworkTopologyStrategy;
 import org.apache.cassandra.locator.SimpleStrategy;
 import org.apache.cassandra.locator.TokenMetadata;
@@ -166,7 +167,35 @@ public class TokenAllocation
             return getStrategy(tokenMetadata, (NetworkTopologyStrategy) rs, rs.snitch, endpoint);
         if (rs instanceof SimpleStrategy)
             return getStrategy(tokenMetadata, (SimpleStrategy) rs, endpoint);
+        if (rs instanceof NeighborStrategy)
+            return getStrategy(tokenMetadata, (NeighborStrategy) rs, endpoint);
         throw new ConfigurationException("Token allocation does not support replication strategy " + rs.getClass().getSimpleName());
+    }
+
+    static StrategyAdapter getStrategy(final TokenMetadata tokenMetadata, final NeighborStrategy rs, final InetAddress endpoint)
+    {
+        final int replicas = rs.getReplicationFactor();
+
+        return new StrategyAdapter()
+        {
+            @Override
+            public boolean inAllocationRing(InetAddress other)
+            {
+                return true;
+            }
+
+            @Override
+            public int replicas()
+            {
+                return replicas;
+            }
+
+            @Override
+            public Object getGroup(InetAddress unit)
+            {
+                return unit;
+            }
+        };
     }
 
     static StrategyAdapter getStrategy(final TokenMetadata tokenMetadata, final SimpleStrategy rs, final InetAddress endpoint)

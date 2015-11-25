@@ -32,7 +32,7 @@ public interface LeaderServiceMBean
 
     public void setLeadership();
 
-    public void setLeaderAddress(InetAddress address);
+    public void setLeader(InetAddress address);
 
     public InetAddress getLeaderAddress();
 

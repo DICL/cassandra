@@ -21,14 +21,19 @@ package org.apache.cassandra.locator;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-
-import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 
+import com.codahale.metrics.ExponentiallyDecayingReservoir;
 import org.apache.cassandra.concurrent.ScheduledExecutors;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.net.MessagingService;
@@ -70,22 +75,11 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
         if (instance != null)
             mbeanName += ",instance=" + instance;
         subsnitch = snitch;
-        Runnable update = new Runnable()
-        {
-            public void run()
-            {
-                updateScores();
-            }
-        };
-        Runnable reset = new Runnable()
-        {
-            public void run()
-            {
-                // we do this so that a host considered bad has a chance to recover, otherwise would we never try
-                // to read from it, which would cause its score to never change
-                reset();
-            }
-        };
+        Runnable update = () -> updateScores();
+        Runnable reset = () -> reset();
+        // we do this so that a host considered bad has a chance to recover, otherwise would we never try
+        // to read from it, which would cause its score to never change
+
         ScheduledExecutors.scheduledTasks.scheduleWithFixedDelay(update, UPDATE_INTERVAL_IN_MS, UPDATE_INTERVAL_IN_MS, TimeUnit.MILLISECONDS);
         ScheduledExecutors.scheduledTasks.scheduleWithFixedDelay(reset, RESET_INTERVAL_IN_MS, RESET_INTERVAL_IN_MS, TimeUnit.MILLISECONDS);
         registerMBean();
@@ -135,7 +129,7 @@ public class DynamicEndpointSnitch extends AbstractEndpointSnitch implements ILa
 
     public List<InetAddress> getSortedListByProximity(final InetAddress address, Collection<InetAddress> addresses)
     {
-        List<InetAddress> list = new ArrayList<InetAddress>(addresses);
+        List<InetAddress> list = new ArrayList<>(addresses);
         sortByProximity(address, list);
         return list;
     }

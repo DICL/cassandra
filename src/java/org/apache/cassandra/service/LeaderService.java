@@ -114,7 +114,7 @@ public class LeaderService implements LeaderServiceMBean
         InetAddress address = DatabaseDescriptor.getSeeds().iterator().next();
         leadershipQueue.add(new EndpointInfo(address, 0));
         leadershipMap.put(address, 0);
-        setLeaderAddress(address);
+        setLeader(address);
     }
 
     /* Removes the address from the list when endpoint went DOWN */
@@ -136,12 +136,14 @@ public class LeaderService implements LeaderServiceMBean
         newLeader.points = 0;
         leadershipMap.replace(newLeader.address, newLeader.points);
         leadershipQueue.add(newLeader); // Putting it back with 0 points
-        setLeaderAddress(newLeader.address);
+        setLeader(newLeader.address);
     }
 
     public void putToLeaderList(InetAddress address, int points)
     {
         if (leadershipMap.containsKey(address)) return;
+        if (logger.isTraceEnabled())
+            logger.trace("Getting info from {} with {} points", address, points);
         leadershipMap.put(address, points);
         leadershipQueue.add(new EndpointInfo(address, points));
     }
@@ -160,8 +162,10 @@ public class LeaderService implements LeaderServiceMBean
     }
 
     /* Assigns an address as an leader-address to send it system load information */
-    public void setLeaderAddress(InetAddress address)
+    public void setLeader(InetAddress address)
     {
+        if (logger.isTraceEnabled())
+            logger.trace("Setting new leader {}", address);
         leaderAddress = address;
         if (leaderAddress == DatabaseDescriptor.getListenAddress())
             setLeadership();

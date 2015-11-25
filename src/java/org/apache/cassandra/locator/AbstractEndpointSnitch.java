@@ -46,13 +46,7 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
      */
     public void sortByProximity(final InetAddress address, List<InetAddress> addresses)
     {
-        Collections.sort(addresses, new Comparator<InetAddress>()
-        {
-            public int compare(InetAddress a1, InetAddress a2)
-            {
-                return compareEndpoints(address, a1, a2);
-            }
-        });
+        Collections.sort(addresses, (a1, a2) -> compareEndpoints(address, a1, a2));
     }
 
     public void gossiperStarting()
@@ -66,9 +60,7 @@ public abstract class AbstractEndpointSnitch implements IEndpointSnitch
         // querying locally, so 2 queries to local nodes is likely to still be
         // faster than 1 query involving remote ones
         boolean mergedHasRemote = hasRemoteNode(merged);
-        return mergedHasRemote
-             ? hasRemoteNode(l1) || hasRemoteNode(l2)
-             : true;
+        return !mergedHasRemote || hasRemoteNode(l1) || hasRemoteNode(l2);
     }
 
     private boolean hasRemoteNode(List<InetAddress> l)
